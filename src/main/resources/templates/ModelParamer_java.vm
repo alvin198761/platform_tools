@@ -1,0 +1,88 @@
+import com.mj.chargepile.annotations.Command;
+import com.mj.chargepile.protocol.CmdEnum;
+import com.mj.chargepile.protocol.impl.xblue.AbstractXblueProtocolParams;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+/**
+* @author: ${auth}
+* @date : ${time}
+* 传送间隔 ${interval}
+* 指令说明 <pre>${remark}</pre>
+* 示例报文 <pre>${example}</pre>
+**/
+@Slf4j
+@Command(command = CmdEnum.XblueLoginCommend)
+@Data
+public class ${vendor}${cmd}Param extends AbstractXblueProtocolParams{
+
+#foreach ($fi in $fList)
+/**
+*<pre>${fi.remark}</pre>
+* [${fi.paramName}] 类型：${fi.dataType} (${fi.length})
+*/
+#if($fi.length <= 4)
+private int param_${fi.no} ;
+#else
+private String param_${fi.no} ;
+#end
+#end
+
+@Override
+public byte[] body() {
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+    #foreach ($fi in $fList)
+        out.write(param_${fi.no});
+    #end
+    return out.toByteArray();
+    } catch (Exception e) {
+    e.printStackTrace();
+    }
+    return null;
+}
+
+@Override
+public  ${vendor}${cmd}Param newParams() {
+    int offset = 0;
+    try {
+    do {
+    switch (offset) {
+    #set($index = 0)
+    #foreach ($fi in $fList)
+        case ${index}: {
+        #if($fi.length == 1)
+            this.param_${fi.no} = body[offset] & 0xff;
+            offset += 1;
+            break;
+        #elseif($fi.length == 2)
+            byte[] temp = new byte[2];
+            System.arraycopy(this.body, offset, temp, 0, temp.length);
+            this.param_${fi.no} =  ByteUtils.bytes2ToInt(temp);
+            offset += 2;
+        #elseif($fi.length  == 4)
+            byte[] temp = new byte[4];
+            System.arraycopy(this.body, offset, temp, 0, temp.length);
+            this.param_${fi.no} = ByteUtils.bytesToInt(temp,0);
+            offset += 4;
+            break;
+        #else
+            byte[] temp = new byte[$fi.length];
+            System.arraycopy(this.body, offset, temp, 0, temp.length);
+            this.param_${fi.no} = new String(temp);
+            offset += $fi.length;
+            break;
+        #end
+        }
+        #set($index = $index + $fi.length)
+    #end
+    default: {
+    log.error("解析小蓝登录报文到" + offset + "出错");
+    offset = body.length;
+    }
+    }
+    } while (offset < body.length);
+    } catch (Exception e) {
+    e.printStackTrace();
+    }
+    return this;
+    }
+}
